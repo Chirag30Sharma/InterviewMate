@@ -1,30 +1,34 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  TextField,
-  Button,
-  Typography,
-  Container,
   Box,
+  Container,
+  Typography,
+  Button,
+  TextField,
+  Paper,
   InputAdornment,
   IconButton,
-  Paper,
-  Alert,
   Link,
-  Divider,
-  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Grid,
+  Divider,
+  Avatar,
+  CircularProgress
 } from '@mui/material';
 import {
   Email,
   Lock,
   Visibility,
   VisibilityOff,
+  AccountCircle,
+  ArrowForward,
+  Key
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -38,7 +42,24 @@ const Login = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleShowPassword = () => setShowPassword(!showPassword);
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut"
+      }
+    },
+    exit: { 
+      opacity: 0, 
+      y: -20,
+      transition: {
+        duration: 0.3
+      }
+    }
+  };
 
   const validateForm = () => {
     if (!email) {
@@ -73,14 +94,15 @@ const Login = () => {
       });
   
       const data = await response.json();
-  
+      
       if (response.ok) {
         localStorage.setItem('userEmail', email);
+        localStorage.setItem('userName', data.user.name);
         toast.success('Login successful!');
         setTimeout(() => navigate('/'), 1500);
       } else {
         if (data.needsVerification) {
-          toast.error('Please verify your email before logging in. Check your inbox.');
+          toast.error('Please verify your email before logging in');
         } else {
           toast.error(data.error || 'Login failed');
         }
@@ -91,14 +113,20 @@ const Login = () => {
       setLoading(false);
     }
   };
-  
+
   const handleForgotPassword = async () => {
+    // Clear any existing toasts
+    toast.dismiss();
+
+    // Basic email validation
     if (!resetEmail) {
-      toast.error('Please enter your email');
+      toast.error('Please enter your email address');
       return;
     }
 
-    if (!/\S+@\S+\.\S+/.test(resetEmail)) {
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(resetEmail)) {
       toast.error('Please enter a valid email address');
       return;
     }
@@ -116,13 +144,14 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success('Password reset link sent to your email');
+        toast.success('Password reset link has been sent to your email');
         setForgotPasswordOpen(false);
         setResetEmail('');
       } else {
         toast.error(data.error || 'Failed to send reset link');
       }
     } catch (error) {
+      console.error('Reset password error:', error);
       toast.error('Network error. Please try again.');
     } finally {
       setResetLoading(false);
@@ -131,201 +160,192 @@ const Login = () => {
 
   return (
     <Box
-      component={motion.div}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
       sx={{
         minHeight: '100vh',
         background: 'linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 2,
+        pt: { xs: 4, md: 8 },
+        pb: 8,
       }}
     >
-      <ToastContainer position="top-center" autoClose={3000} />
+      <ToastContainer position="top-center" />
       
-      <Container maxWidth="xs">
-        <Paper
-          component={motion.div}
-          initial={{ y: 20 }}
-          animate={{ y: 0 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-          elevation={24}
-          sx={{
-            p: 4,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            borderRadius: 3,
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(10px)',
-            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-          }}
+      <Container maxWidth="sm">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          variants={cardVariants}
         >
-          <Typography
-            component="h1"
-            variant="h4"
+          <Paper
+            elevation={24}
             sx={{
-              mb: 4,
-              fontWeight: 700,
-              background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent',
-              textAlign: 'center',
+              p: 4,
+              borderRadius: 3,
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
             }}
           >
-            Welcome Back
-          </Typography>
-
-          <Box 
-            component="form" 
-            onSubmit={handleLogin} 
-            sx={{ width: '100%' }}
-          >
-            <TextField
-              required
-              fullWidth
-              margin="normal"
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Email sx={{ color: '#1a237e' }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': {
-                    borderColor: '#1a237e',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#1a237e',
-                  },
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#1a237e',
-                },
-              }}
-            />
-
-            <TextField
-              required
-              fullWidth
-              margin="normal"
-              name="password"
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
-              id="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock sx={{ color: '#1a237e' }} />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={handleShowPassword}
-                      edge="end"
-                      sx={{ color: '#1a237e' }}
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': {
-                    borderColor: '#1a237e',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#1a237e',
-                  },
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#1a237e',
-                },
-              }}
-            />
-
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              disabled={loading}
-              sx={{
-                mt: 3,
-                mb: 2,
-                py: 1.5,
-                background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
-                boxShadow: '0 3px 5px 2px rgba(26, 35, 126, .3)',
-                borderRadius: 2,
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #0d47a1 30%, #1a237e 90%)',
-                  transform: 'scale(1.02)',
-                  transition: 'transform 0.2s ease-in-out',
-                },
-              }}
-            >
-              {loading ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 1,
-              }}
-            >
-              <Link 
-                onClick={() => setForgotPasswordOpen(true)}
-                variant="body2"
-                sx={{ 
-                  color: '#1a237e',
-                  textDecoration: 'none',
-                  cursor: 'pointer',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
+            <Box sx={{ textAlign: 'center', mb: 4 }}>
+              <Avatar
+                sx={{
+                  width: 64,
+                  height: 64,
+                  backgroundColor: '#1a237e',
+                  margin: '0 auto 16px',
                 }}
               >
-                Forgot password?
-              </Link>
-              <Link 
-                href="/register" 
-                variant="body2" 
-                sx={{ 
-                  color: '#1a237e',
-                  textDecoration: 'none',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
+                <AccountCircle sx={{ fontSize: 40 }} />
+              </Avatar>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 700,
+                  background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  color: 'transparent',
                 }}
               >
-                Don't have an account? Sign Up
-              </Link>
+                Welcome Back
+              </Typography>
+              <Typography variant="body1" color="textSecondary" sx={{ mt: 1 }}>
+                Sign in to continue your journey
+              </Typography>
             </Box>
-          </Box>
-        </Paper>
+
+            <form onSubmit={handleLogin}>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Email Address"
+                    variant="outlined"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Email sx={{ color: '#1a237e' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        '&:hover fieldset': { borderColor: '#1a237e' },
+                        '&.Mui-focused fieldset': { borderColor: '#1a237e' },
+                      },
+                      '& .MuiInputLabel-root.Mui-focused': { color: '#1a237e' },
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    variant="outlined"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Lock sx={{ color: '#1a237e' }} />
+                        </InputAdornment>
+                      ),
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowPassword(!showPassword)}
+                            edge="end"
+                          >
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        '&:hover fieldset': { borderColor: '#1a237e' },
+                        '&.Mui-focused fieldset': { borderColor: '#1a237e' },
+                      },
+                      '& .MuiInputLabel-root.Mui-focused': { color: '#1a237e' },
+                    }}
+                  />
+                </Grid>
+              </Grid>
+
+              <Box sx={{ mt: 2, textAlign: 'right' }}>
+                <Button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setForgotPasswordOpen(true);
+                  }}
+                  sx={{
+                    color: '#1a237e',
+                    textDecoration: 'none',
+                    '&:hover': { textDecoration: 'underline' },
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    font: 'inherit',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Forgot password?
+                </Button>
+              </Box>
+
+              <Button
+                fullWidth
+                type="submit"
+                variant="contained"
+                disabled={loading}
+                endIcon={<ArrowForward />}
+                sx={{
+                  mt: 4,
+                  mb: 2,
+                  py: 1.5,
+                  background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
+                  boxShadow: '0 3px 5px 2px rgba(26, 35, 126, .3)',
+                  '&:hover': {
+                    background: 'linear-gradient(45deg, #0d47a1 30%, #1a237e 90%)',
+                    transform: 'scale(1.02)',
+                    transition: 'transform 0.2s ease-in-out',
+                  },
+                }}
+              >
+                {loading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  'Sign In'
+                )}
+              </Button>
+
+              <Divider sx={{ my: 3 }}>
+                <Typography variant="body2" color="textSecondary">
+                  OR
+                </Typography>
+              </Divider>
+
+              <Box sx={{ textAlign: 'center' }}>
+                <Link
+                  href="/register"
+                  variant="body1"
+                  sx={{
+                    color: '#1a237e',
+                    textDecoration: 'none',
+                    '&:hover': { textDecoration: 'underline' },
+                  }}
+                >
+                  Don't have an account? Sign Up
+                </Link>
+              </Box>
+            </form>
+          </Paper>
+        </motion.div>
       </Container>
 
       {/* Forgot Password Dialog */}
@@ -345,21 +365,24 @@ const Login = () => {
         <DialogTitle sx={{
           background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
           color: 'white',
-          borderRadius: '8px 8px 0 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
         }}>
+          <Key sx={{ fontSize: 24 }} />
           Reset Password
         </DialogTitle>
-        <DialogContent sx={{ mt: 2 }}>
-          <Typography variant="body2" sx={{ mb: 2 }}>
+        
+        <DialogContent sx={{ mt: 2, p: 3 }}>
+          <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
             Enter your email address and we'll send you a link to reset your password.
           </Typography>
+          
           <TextField
             autoFocus
-            margin="dense"
+            fullWidth
             label="Email Address"
             type="email"
-            fullWidth
-            variant="outlined"
             value={resetEmail}
             onChange={(e) => setResetEmail(e.target.value)}
             disabled={resetLoading}
@@ -372,24 +395,27 @@ const Login = () => {
             }}
             sx={{
               '& .MuiOutlinedInput-root': {
-                '&:hover fieldset': {
-                  borderColor: '#1a237e',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#1a237e',
-                },
+                '&:hover fieldset': { borderColor: '#1a237e' },
+                '&.Mui-focused fieldset': { borderColor: '#1a237e' },
               },
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: '#1a237e',
-              },
+              '& .MuiInputLabel-root.Mui-focused': { color: '#1a237e' },
             }}
           />
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        
+        <DialogActions sx={{ p: 3, pt: 0 }}>
           <Button
-            onClick={() => setForgotPasswordOpen(false)}
+            onClick={() => {
+              setForgotPasswordOpen(false);
+              setResetEmail('');
+            }}
             disabled={resetLoading}
-            sx={{ color: '#1a237e' }}
+            sx={{ 
+              color: '#1a237e',
+              '&:hover': {
+                backgroundColor: 'rgba(26, 35, 126, 0.04)',
+              },
+            }}
           >
             Cancel
           </Button>
@@ -397,6 +423,7 @@ const Login = () => {
             onClick={handleForgotPassword}
             disabled={resetLoading}
             variant="contained"
+            startIcon={resetLoading ? <CircularProgress size={20} color="inherit" /> : null}
             sx={{
               background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
               '&:hover': {
@@ -404,11 +431,7 @@ const Login = () => {
               },
             }}
           >
-            {resetLoading ? (
-              <CircularProgress size={24} sx={{ color: 'white' }} />
-            ) : (
-              'Send Reset Link'
-            )}
+            {resetLoading ? 'Sending...' : 'Send Reset Link'}
           </Button>
         </DialogActions>
       </Dialog>

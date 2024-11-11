@@ -1,6 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Color } from 'three';
+import {
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  Button,
+  CircularProgress,
+  Alert,
+  Fade,
+  Skeleton,
+  IconButton,
+  Tooltip,
+} from '@mui/material';
+import {
+  FiClock,
+  FiChevronRight,
+  FiAward,
+  FiBarChart2,
+  FiAlertCircle,
+} from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const EvaluationHistory = () => {
   const [evaluations, setEvaluations] = useState([]);
@@ -11,7 +32,6 @@ const EvaluationHistory = () => {
   useEffect(() => {
     const fetchEvaluations = async () => {
       const userEmail = localStorage.getItem('userEmail');
-      
       if (!userEmail) {
         setError('User email not found');
         setLoading(false);
@@ -24,11 +44,10 @@ const EvaluationHistory = () => {
           throw new Error('Failed to fetch evaluations');
         }
         const data = await response.json();
-        console.log('Fetched data:', data); // Debug log
         setEvaluations(data);
       } catch (err) {
         setError(err.message);
-        console.error('Fetch error:', err); // Debug log
+        console.error('Fetch error:', err);
       } finally {
         setLoading(false);
       }
@@ -41,93 +60,197 @@ const EvaluationHistory = () => {
     if (!dateString) return 'Date not available';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'short',
+      month: 'long',
       day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
-  // Helper function to safely format the score
   const formatScore = (score) => {
     if (score === null || score === undefined) return 'N/A';
     return Number(score).toFixed(1);
   };
 
+  const getScoreColor = (score) => {
+    if (score >= 8) return '#4CAF50';
+    if (score >= 6) return '#FFC107';
+    return '#FF5252';
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 }
+  };
+
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <Box sx={{ p: 4 }}>
+        <Grid container spacing={3}>
+          {[1, 2, 3].map((item) => (
+            <Grid item xs={12} sm={6} md={4} key={item}>
+              <Skeleton
+                variant="rectangular"
+                height={200}
+                sx={{ borderRadius: 2 }}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+    );
   }
 
   if (error) {
-    return <div>Error loading evaluations: {error}</div>;
+    return (
+      <Box sx={{ p: 4 }}>
+        <Alert
+          severity="error"
+          variant="filled"
+          sx={{ borderRadius: 2 }}
+          icon={<FiAlertCircle size={24} />}
+        >
+          {error}
+        </Alert>
+      </Box>
+    );
   }
 
-  const containerStyle = {
-    padding: '20px',
-    maxWidth: '1200px',
-    margin: '0 auto'
-  };
-
-  const cardGridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '20px',
-    marginTop: '20px'
-  };
-
-  const cardStyle = {
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    padding: '15px',
-    backgroundColor: 'white',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-  };
-
-const scoreStyle = {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    marginBottom: '10px',
-    color: 'black'
-};
-
-  const dateStyle = {
-    color: '#666',
-    marginBottom: '15px'
-  };
-
-  const buttonStyle = {
-    backgroundColor: '#2196F3',
-    color: 'white',
-    border: 'none',
-    padding: '8px 16px',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px'
-  };
-
   return (
-    <div style={containerStyle}>
-      <h2>Your Interview Evaluations</h2>
-      <div style={cardGridStyle}>
-        {evaluations && evaluations.map((evaluation, index) => (
-          <div key={index} style={cardStyle}>
-            <div style={scoreStyle}>
-              Score: {formatScore(evaluation?.average_score)}
-            </div>
-            <div style={dateStyle}>
-              Date: {formatDate(evaluation?.createdAt)}
-            </div>
-            <button 
-                style={buttonStyle}
-                onClick={() => navigate(`/evaluationDetails`, { state: { evaluation } })}
+    <Box sx={{ p: 4 }}>
+      <AnimatePresence>
+        {evaluations && evaluations.length > 0 ? (
+          <Grid container spacing={3}>
+            {evaluations.map((evaluation, index) => (
+              <Grid item xs={12} sm={6} md={4} key={index}>
+                <motion.div
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
                 >
-                Read More
-            </button>
-          </div>
-        ))}
-      </div>
-      {(!evaluations || evaluations.length === 0) && (
-        <div>No evaluations found. Start your first interview to see results here!</div>
-      )}
-    </div>
+                  <Card
+                    elevation={0}
+                    sx={{
+                      borderRadius: 4,
+                      background: 'rgba(255, 255, 255, 0.9)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      overflow: 'hidden',
+                      transition: 'transform 0.3s ease-in-out',
+                      '&:hover': {
+                        transform: 'translateY(-8px)',
+                      },
+                    }}
+                  >
+                    <CardContent sx={{ p: 3 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          mb: 3,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 60,
+                            height: 60,
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: `linear-gradient(45deg, ${getScoreColor(
+                              evaluation?.average_score
+                            )}, ${getScoreColor(evaluation?.average_score)}88)`,
+                            color: 'white',
+                            fontSize: '1.5rem',
+                            fontWeight: 'bold',
+                          }}
+                        >
+                          {formatScore(evaluation?.average_score)}
+                        </Box>
+                        <Box>
+                          <Typography
+                            variant="h6"
+                            sx={{ fontWeight: 600, color: '#1A1A1A' }}
+                          >
+                            Score
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            out of 10
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      <Box sx={{ mb: 3 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            color: '#666',
+                          }}
+                        >
+                          <FiClock size={16} />
+                          {formatDate(evaluation?.createdAt)}
+                        </Typography>
+                      </Box>
+
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        endIcon={<FiChevronRight />}
+                        onClick={() =>
+                          navigate(`/evaluationDetails`, {
+                            state: { evaluation },
+                          })
+                        }
+                        sx={{
+                          background: 'linear-gradient(45deg, #2193b0 30%, #6dd5ed 90%)',
+                          borderRadius: '12px',
+                          textTransform: 'none',
+                          py: 1.5,
+                          fontWeight: 600,
+                          '&:hover': {
+                            background: 'linear-gradient(45deg, #1c7a94 30%, #5bc1d9 90%)',
+                          },
+                        }}
+                      >
+                        View Details
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+            ))}
+          </Grid>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Alert
+              severity="info"
+              sx={{
+                borderRadius: 2,
+                backgroundColor: 'rgba(33, 147, 176, 0.1)',
+                color: '#2193b0',
+                '& .MuiAlert-icon': {
+                  color: '#2193b0',
+                },
+              }}
+            >
+              No evaluations found. Start your first interview to see results here!
+            </Alert>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Box>
   );
 };
 
