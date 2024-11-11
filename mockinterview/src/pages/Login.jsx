@@ -1,4 +1,3 @@
-// Login.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -13,16 +12,17 @@ import {
   Alert,
   Link,
   Divider,
-  CircularProgress
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Email,
   Lock,
   Visibility,
   VisibilityOff,
-  Google,
-  GitHub,
-  LinkedIn
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { toast, ToastContainer } from 'react-toastify';
@@ -33,6 +33,9 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleShowPassword = () => setShowPassword(!showPassword);
@@ -59,7 +62,7 @@ const Login = () => {
     if (!validateForm()) return;
     
     setLoading(true);
-
+  
     try {
       const response = await fetch('http://localhost:8080/auth/login', {
         method: 'POST',
@@ -68,14 +71,19 @@ const Login = () => {
         },
         body: JSON.stringify({ email, password }),
       });
-
+  
+      const data = await response.json();
+  
       if (response.ok) {
         localStorage.setItem('userEmail', email);
         toast.success('Login successful!');
         setTimeout(() => navigate('/'), 1500);
       } else {
-        const data = await response.json();
-        toast.error(data.error || 'Login failed');
+        if (data.needsVerification) {
+          toast.error('Please verify your email before logging in. Check your inbox.');
+        } else {
+          toast.error(data.error || 'Login failed');
+        }
       }
     } catch (err) {
       toast.error('Network error. Please try again.');
@@ -83,9 +91,42 @@ const Login = () => {
       setLoading(false);
     }
   };
+  
+  const handleForgotPassword = async () => {
+    if (!resetEmail) {
+      toast.error('Please enter your email');
+      return;
+    }
 
-  const handleSocialLogin = (platform) => {
-    toast.info(`${platform} login coming soon!`);
+    if (!/\S+@\S+\.\S+/.test(resetEmail)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const response = await fetch('http://localhost:8080/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Password reset link sent to your email');
+        setForgotPasswordOpen(false);
+        setResetEmail('');
+      } else {
+        toast.error(data.error || 'Failed to send reset link');
+      }
+    } catch (error) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   return (
@@ -247,37 +288,6 @@ const Login = () => {
               )}
             </Button>
 
-            <Divider sx={{ my: 2 }}>OR</Divider>
-
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'center',
-              gap: 2,
-              mb: 3
-            }}>
-              {[
-                { icon: <Google />, platform: 'Google' },
-                { icon: <GitHub />, platform: 'GitHub' },
-                { icon: <LinkedIn />, platform: 'LinkedIn' }
-              ].map((social, index) => (
-                <IconButton
-                  key={index}
-                  onClick={() => handleSocialLogin(social.platform)}
-                  sx={{
-                    color: '#fff',
-                    backgroundColor: '#1a237e',
-                    '&:hover': {
-                      backgroundColor: '#0d47a1',
-                      transform: 'scale(1.1)',
-                    },
-                    transition: 'all 0.2s ease-in-out',
-                  }}
-                >
-                  {social.icon}
-                </IconButton>
-              ))}
-            </Box>
-
             <Box 
               sx={{ 
                 display: 'flex', 
@@ -287,11 +297,12 @@ const Login = () => {
               }}
             >
               <Link 
-                href="#" 
-                variant="body2" 
+                onClick={() => setForgotPasswordOpen(true)}
+                variant="body2"
                 sx={{ 
                   color: '#1a237e',
                   textDecoration: 'none',
+                  cursor: 'pointer',
                   '&:hover': {
                     textDecoration: 'underline',
                   },
@@ -316,6 +327,91 @@ const Login = () => {
           </Box>
         </Paper>
       </Container>
+
+      {/* Forgot Password Dialog */}
+      <Dialog
+        open={forgotPasswordOpen}
+        onClose={() => !resetLoading && setForgotPasswordOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+          },
+        }}
+      >
+        <DialogTitle sx={{
+          background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
+          color: 'white',
+          borderRadius: '8px 8px 0 0',
+        }}>
+          Reset Password
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Enter your email address and we'll send you a link to reset your password.
+          </Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Email Address"
+            type="email"
+            fullWidth
+            variant="outlined"
+            value={resetEmail}
+            onChange={(e) => setResetEmail(e.target.value)}
+            disabled={resetLoading}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Email sx={{ color: '#1a237e' }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: '#1a237e',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#1a237e',
+                },
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#1a237e',
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button
+            onClick={() => setForgotPasswordOpen(false)}
+            disabled={resetLoading}
+            sx={{ color: '#1a237e' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleForgotPassword}
+            disabled={resetLoading}
+            variant="contained"
+            sx={{
+              background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #0d47a1 30%, #1a237e 90%)',
+              },
+            }}
+          >
+            {resetLoading ? (
+              <CircularProgress size={24} sx={{ color: 'white' }} />
+            ) : (
+              'Send Reset Link'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
