@@ -6,13 +6,6 @@ import {
   Container,
   TextField,
   Typography,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
-  MenuItem,
-  Select,
-  InputLabel,
-  FormControl,
   LinearProgress,
   Grid,
   Paper,
@@ -24,6 +17,9 @@ import {
   Step,
   StepLabel,
   CircularProgress,
+  Avatar,
+  Card,
+  CardContent,
 } from '@mui/material';
 import {
   CloudUpload,
@@ -34,12 +30,16 @@ import {
   WorkOutline,
   Description,
   Timer,
+  Code,
+  People,
   Category,
+  ArrowBack,
+  CheckCircle,
 } from '@mui/icons-material';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Start = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -59,20 +59,53 @@ const Start = () => {
     {
       label: 'Upload Resume',
       icon: <FilePresent />,
+      description: 'Upload your latest resume in PDF format',
     },
     {
       label: 'Job Details',
       icon: <WorkOutline />,
+      description: 'Provide information about the position',
     },
     {
       label: 'Experience',
       icon: <Timer />,
+      description: 'Specify your experience level',
     },
     {
       label: 'Domain',
       icon: <Category />,
+      description: 'Select your interview domain',
     },
   ];
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.5,
+        when: "beforeChildren",
+        staggerChildren: 0.1
+      }
+    },
+    exit: {
+      opacity: 0,
+      transition: {
+        duration: 0.3
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        duration: 0.5
+      }
+    }
+  };
 
   useEffect(() => {
     const storedResume = localStorage.getItem('storedResume');
@@ -198,42 +231,93 @@ const Start = () => {
       case 0:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            variants={itemVariants}
+            initial="hidden"
+            animate="visible"
           >
-            <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column' }}>
-              <Button
-                variant="outlined"
-                component="label"
-                startIcon={<CloudUpload />}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Typography variant="h6" color="primary" gutterBottom>
+                Upload Your Resume
+              </Typography>
+              
+              <Paper
+                elevation={0}
                 sx={{
-                  p: 5,
+                  p: 4,
                   border: '2px dashed #1a237e',
-                  borderRadius: '10px',
+                  borderRadius: 2,
+                  backgroundColor: 'rgba(26, 35, 126, 0.02)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
                   '&:hover': {
-                    border: '2px dashed #0d47a1',
                     backgroundColor: 'rgba(26, 35, 126, 0.04)',
+                    transform: 'translateY(-2px)',
                   },
                 }}
+                component="label"
               >
-                {formData.resume ? formData.resume.name : 'Drag and drop or click to upload resume (PDF)'}
                 <input
-                  accept="application/pdf"
-                  style={{ display: 'none' }}
                   type="file"
+                  accept=".pdf"
+                  hidden
                   onChange={handleFileUpload}
                 />
-              </Button>
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center',
+                  gap: 2 
+                }}>
+                  <Avatar
+                    sx={{
+                      width: 60,
+                      height: 60,
+                      backgroundColor: '#1a237e',
+                    }}
+                  >
+                    <CloudUpload sx={{ fontSize: 30 }} />
+                  </Avatar>
+                  
+                  {/* Fixed Typography structure */}
+                  <Box sx={{ textAlign: 'center' }}>
+                    {formData.resume ? (
+                      <Typography 
+                        variant="body1" 
+                        component="div" 
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          gap: 1 
+                        }}
+                      >
+                        <CheckCircle color="success" />
+                        <span>{formData.resume.name}</span>
+                      </Typography>
+                    ) : (
+                      <Typography variant="body1">
+                        Drag and drop your resume here or click to browse
+                      </Typography>
+                    )}
+                  </Box>
+                  
+                  <Typography variant="caption" color="textSecondary">
+                    Supported format: PDF (Max size: 5MB)
+                  </Typography>
+                </Box>
+              </Paper>
+      
               {formData.resume && (
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   onClick={() => setPreviewOpen(true)}
                   startIcon={<Visibility />}
                   sx={{
-                    background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
+                    borderColor: '#1a237e',
+                    color: '#1a237e',
                     '&:hover': {
-                      background: 'linear-gradient(45deg, #0d47a1 30%, #1a237e 90%)',
+                      borderColor: '#0d47a1',
+                      backgroundColor: 'rgba(26, 35, 126, 0.04)',
                     },
                   }}
                 >
@@ -243,14 +327,21 @@ const Start = () => {
             </Box>
           </motion.div>
         );
+        
       case 1:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            variants={itemVariants}
+            initial="hidden"
+            animate="visible"
           >
             <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  Job Details
+                </Typography>
+              </Grid>
+              
               <Grid item xs={12}>
                 <TextField
                   label="Job Role"
@@ -258,6 +349,11 @@ const Start = () => {
                   fullWidth
                   value={formData.jobRole}
                   onChange={(e) => setFormData(prev => ({ ...prev, jobRole: e.target.value }))}
+                  InputProps={{
+                    startAdornment: (
+                      <WorkOutline sx={{ color: '#1a237e', mr: 1 }} />
+                    ),
+                  }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       '&:hover fieldset': { borderColor: '#1a237e' },
@@ -267,6 +363,7 @@ const Start = () => {
                   }}
                 />
               </Grid>
+
               <Grid item xs={12}>
                 <TextField
                   label="Job Description"
@@ -276,6 +373,11 @@ const Start = () => {
                   rows={4}
                   value={formData.jobDescription}
                   onChange={(e) => setFormData(prev => ({ ...prev, jobDescription: e.target.value }))}
+                  InputProps={{
+                    startAdornment: (
+                      <Description sx={{ color: '#1a237e', mr: 1, mt: 1 }} />
+                    ),
+                  }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       '&:hover fieldset': { borderColor: '#1a237e' },
@@ -288,81 +390,162 @@ const Start = () => {
             </Grid>
           </motion.div>
         );
+
       case 2:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            variants={itemVariants}
+            initial="hidden"
+            animate="visible"
           >
-            <Typography variant="subtitle1" sx={{ mb: 2, color: '#1a237e' }}>
-              Years of Experience:
-            </Typography>
-            <RadioGroup
-              row
-              value={formData.experience}
-              onChange={(e) => setFormData(prev => ({ ...prev, experience: e.target.value }))}
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-                gap: 2,
-              }}
-            >
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" color="primary" gutterBottom>
+                Years of Experience
+              </Typography>
+              <Typography variant="body2" color="textSecondary" gutterBottom>
+                Select your experience level to help us tailor the interview questions
+              </Typography>
+            </Box>
+
+            <Grid container spacing={2}>
               {['0-1', '1-3', '3-5', '5+'].map((value) => (
-                <Paper
-                  key={value}
-                  elevation={formData.experience === value ? 8 : 1}
-                  sx={{
-                    transition: 'all 0.3s ease',
-                    transform: formData.experience === value ? 'scale(1.05)' : 'scale(1)',
-                  }}
-                >
-                  <FormControlLabel
-                    value={value}
-                    control={<Radio />}
-                    label={`${value} years`}
+                <Grid item xs={12} sm={6} md={3} key={value}>
+                  <Card
+                    elevation={formData.experience === value ? 8 : 1}
                     sx={{
-                      m: 0,
-                      p: 2,
-                      width: '100%',
-                      '& .MuiFormControlLabel-label': {
-                        color: formData.experience === value ? '#1a237e' : 'inherit',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      transform: formData.experience === value ? 'scale(1.05)' : 'scale(1)',
+                      '&:hover': {
+                        transform: 'scale(1.05)',
                       },
                     }}
-                  />
-                </Paper>
+                    onClick={() => setFormData(prev => ({ ...prev, experience: value }))}
+                  >
+                    <CardContent>
+                      <Box sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 1,
+                      }}>
+                        <Avatar
+                          sx={{
+                            bgcolor: formData.experience === value ? '#1a237e' : 'rgba(26, 35, 126, 0.1)',
+                            width: 50,
+                            height: 50,
+                          }}
+                        >
+                          <Timer />
+                        </Avatar>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            color: formData.experience === value ? '#1a237e' : 'text.primary',
+                            fontWeight: formData.experience === value ? 600 : 400,
+                          }}
+                        >
+                          {value} years
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
               ))}
-            </RadioGroup>
+            </Grid>
           </motion.div>
         );
+
       case 3:
         return (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            variants={itemVariants}
+            initial="hidden"
+            animate="visible"
           >
-            <FormControl fullWidth>
-              <InputLabel sx={{ color: '#1a237e' }}>Domain</InputLabel>
-              <Select
-                value={formData.domain}
-                onChange={(e) => setFormData(prev => ({ ...prev, domain: e.target.value }))}
-                label="Domain"
-                sx={{
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#1a237e',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#0d47a1',
-                  },
-                }}
-              >
-                <MenuItem value="Technical">Technical</MenuItem>
-                <MenuItem value="Non Technical">Non Technical</MenuItem>
-              </Select>
-            </FormControl>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" color="primary" gutterBottom>
+                Interview Domain
+              </Typography>
+              <Typography variant="body2" color="textSecondary" gutterBottom>
+                Choose the type of interview you'd like to practice
+              </Typography>
+            </Box>
+
+            <Grid container spacing={3}>
+              {[
+                {
+                  value: 'Technical',
+                  title: 'Technical Interview',
+                  description: 'Focus on technical skills, coding, and problem-solving',
+                  icon: <Code />,
+                },
+                {
+                  value: 'Non Technical',
+                  title: 'HR Interview',
+                  description: 'Focus on behavioral questions and soft skills',
+                  icon: <People />,
+                },
+              ].map((option) => (
+                <Grid item xs={12} sm={6} key={option.value}>
+                  <Card
+                    elevation={formData.domain === option.value ? 8 : 1}
+                    sx={{
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      transform: formData.domain === option.value ? 'scale(1.05)' : 'scale(1)',
+                      '&:hover': {
+                        transform: 'scale(1.05)',
+                      },
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                    onClick={() => setFormData(prev => ({ ...prev, domain: option.value }))}
+                  >
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Box sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 2,
+                        p: 2,
+                      }}>
+                        <Avatar
+                          sx={{
+                            bgcolor: formData.domain === option.value ? '#1a237e' : 'rgba(26, 35, 126, 0.1)',
+                            width: 60,
+                            height: 60,
+                          }}
+                        >
+                          {option.icon}
+                        </Avatar>
+                        <Typography
+                          variant="h6"
+                          align="center"
+                          sx={{
+                            color: formData.domain === option.value ? '#1a237e' : 'text.primary',
+                            fontWeight: formData.domain === option.value ? 600 : 400,
+                          }}
+                        >
+                          {option.title}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color="textSecondary"
+                          align="center"
+                        >
+                          {option.description}
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
           </motion.div>
         );
+
       default:
         return null;
     }
@@ -373,18 +556,79 @@ const Start = () => {
       sx={{
         minHeight: '100vh',
         background: 'linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)',
-        pt: 4,
-        pb: 6,
+        pt: { xs: 4, md: 8 },
+        pb: 8,
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
-      <ToastContainer position="top-center" autoClose={3000} />
+      {/* Background Gradient Elements */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: '-20%',
+          right: '-10%',
+          width: '600px',
+          height: '600px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+          filter: 'blur(60px)',
+          zIndex: 0,
+          animation: 'float 6s ease-in-out infinite',
+          '@keyframes float': {
+            '0%, 100%': { transform: 'translateY(0)' },
+            '50%': { transform: 'translateY(-20px)' },
+          },
+        }}
+      />
 
-      <Container maxWidth="md">
+      <ToastContainer position="top-center" />
+      
+      <Container maxWidth="lg">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          variants={containerVariants}
         >
+          {/* Header */}
+          <Box sx={{ mb: 6, textAlign: 'center' }}>
+            <Button
+              startIcon={<ArrowBack />}
+              onClick={() => navigate('/')}
+              sx={{
+                mb: 4,
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                },
+              }}
+            >
+              Back to Home
+            </Button>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                color: 'white',
+                textAlign: 'center',
+                mb: 2,
+              }}
+            >
+              Start Your Interview
+            </Typography>
+            <Typography
+              variant="h6"
+              sx={{
+                color: 'rgba(255, 255, 255, 0.8)',
+                textAlign: 'center',
+                maxWidth: '600px',
+                margin: '0 auto',
+              }}
+            >
+              Complete the following steps to begin your personalized interview session
+            </Typography>
+          </Box>
+
           <Paper
             elevation={24}
             sx={{
@@ -392,29 +636,16 @@ const Start = () => {
               borderRadius: 3,
               backgroundColor: 'rgba(255, 255, 255, 0.95)',
               backdropFilter: 'blur(10px)',
+              position: 'relative',
+              zIndex: 1,
             }}
           >
-            <Typography
-              variant="h4"
-              align="center"
-              gutterBottom
-              sx={{
-                fontWeight: 700,
-                background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                color: 'transparent',
-                mb: 4,
-              }}
-            >
-              Start Your Interview
-            </Typography>
-
+            {/* Stepper */}
             <Stepper 
               activeStep={activeStep} 
               alternativeLabel
               sx={{ 
-                mb: 4,
+                mb: 6,
                 '& .MuiStepLabel-root .Mui-completed': {
                   color: '#1a237e',
                 },
@@ -429,25 +660,56 @@ const Start = () => {
               {steps.map((step, index) => (
                 <Step key={index}>
                   <StepLabel
-                    icon={
-                      <motion.div
-                        animate={{
-                          scale: activeStep === index ? 1.2 : 1,
-                          opacity: activeStep === index ? 1 : 0.7,
+                    StepIconComponent={() => (
+                      <Avatar
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          bgcolor: activeStep === index ? '#1a237e' : 'rgba(26, 35, 126, 0.2)',
+                          transform: activeStep === index ? 'scale(1.2)' : 'scale(1)',
+                          transition: 'all 0.3s ease',
                         }}
                       >
                         {step.icon}
-                      </motion.div>
-                    }
+                      </Avatar>
+                    )}
                   >
-                    {step.label}
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        color: activeStep === index ? '#1a237e' : 'text.secondary',
+                        fontWeight: activeStep === index ? 600 : 400,
+                      }}
+                    >
+                      {step.label}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                    >
+                      {step.description}
+                    </Typography>
                   </StepLabel>
                 </Step>
               ))}
             </Stepper>
 
-            {getStepContent()}
+            {/* Form Content */}
+            <Box sx={{ minHeight: '300px' }}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeStep}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {getStepContent()}
+                </motion.div>
+              </AnimatePresence>
+            </Box>
 
+            {/* Progress Bar for Upload */}
             {loading && (
               <Box sx={{ width: '100%', mt: 3 }}>
                 <LinearProgress 
@@ -474,21 +736,26 @@ const Start = () => {
               </Box>
             )}
 
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+            {/* Navigation Buttons */}
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              mt: 6,
+              pt: 3,
+              borderTop: '1px solid rgba(0,0,0,0.1)'
+            }}>
               <Button
                 onClick={handleBack}
-                disabled={activeStep === 0}
+                disabled={activeStep === 0 || loading}
+                startIcon={<ArrowBack />}
                 sx={{
                   px: 4,
                   py: 1.5,
                   color: '#1a237e',
                   border: '1px solid #1a237e',
-                  borderRadius: '25px',
+                  borderRadius: '50px',
                   '&:hover': {
                     backgroundColor: 'rgba(26, 35, 126, 0.04)',
-                  },
-                  '&.Mui-disabled': {
-                    opacity: 0.5,
                   },
                 }}
               >
@@ -498,11 +765,13 @@ const Start = () => {
                 onClick={handleNext}
                 variant="contained"
                 disabled={loading}
+                endIcon={loading ? undefined : <ArrowForward />}
                 sx={{
                   px: 4,
                   py: 1.5,
                   background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
-                  borderRadius: '25px',
+                  borderRadius: '50px',
+                  boxShadow: '0 3px 5px 2px rgba(26, 35, 126, .3)',
                   '&:hover': {
                     background: 'linear-gradient(45deg, #0d47a1 30%, #1a237e 90%)',
                     transform: 'scale(1.02)',
@@ -511,7 +780,7 @@ const Start = () => {
                 }}
               >
                 {loading ? (
-                  <CircularProgress size={24} sx={{ color: '#fff' }} />
+                  <CircularProgress size={24} color="inherit" />
                 ) : activeStep === steps.length - 1 ? (
                   'Start Interview'
                 ) : (
@@ -523,7 +792,7 @@ const Start = () => {
         </motion.div>
       </Container>
 
-      {/* PDF Preview Dialog */}
+      {/* Resume Preview Dialog */}
       <Dialog
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
@@ -570,84 +839,8 @@ const Start = () => {
           />
         </DialogContent>
       </Dialog>
-
-      {/* Help Dialog - Optional */}
-      <Dialog
-        open={false} // Set to true when you want to show help
-        onClose={() => {}} // Add handler
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(10px)',
-          },
-        }}
-      >
-        <DialogTitle sx={{ 
-          backgroundColor: '#1a237e', 
-          color: '#fff' 
-        }}>
-          Need Help?
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ py: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Tips for a successful interview:
-            </Typography>
-            <Typography variant="body1" paragraph>
-              1. Make sure your resume is up to date and in PDF format
-            </Typography>
-            <Typography variant="body1" paragraph>
-              2. Provide detailed job description for better question matching
-            </Typography>
-            <Typography variant="body1" paragraph>
-              3. Select the appropriate experience level and domain
-            </Typography>
-            <Typography variant="body1">
-              4. Ensure you have a working microphone and camera
-            </Typography>
-          </Box>
-        </DialogContent>
-      </Dialog>
-
-      {/* Progress Overlay - Optional */}
-      {loading && (
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-          }}
-        >
-          <CircularProgress 
-            size={60} 
-            thickness={4} 
-            sx={{ color: '#fff' }} 
-          />
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              color: '#fff', 
-              mt: 2 
-            }}
-          >
-            Preparing Your Interview...
-          </Typography>
-        </Box>
-      )}
     </Box>
   );
 };
 
 export default Start;
-            

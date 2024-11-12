@@ -7,18 +7,12 @@ import {
   Card,
   CardContent,
   Button,
-  CircularProgress,
   Alert,
-  Fade,
   Skeleton,
-  IconButton,
-  Tooltip,
 } from '@mui/material';
 import {
   FiClock,
   FiChevronRight,
-  FiAward,
-  FiBarChart2,
   FiAlertCircle,
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';

@@ -5,7 +5,6 @@ import {
   Typography,
   Paper,
   Button,
-  IconButton,
   Divider,
   List,
   ListItem,
@@ -15,33 +14,25 @@ import {
   Card,
   CardContent,
   CircularProgress,
-  Stepper,
-  Step,
-  StepLabel,
   Container,
   Chip,
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Tooltip,
-  Link,
+  Link
 } from '@mui/material';
 import {
   QuestionMark,
   FiberManualRecord,
+  FileDownload,
 } from '@mui/icons-material';
+import { generatePDF } from '../utils/pdfGenerator';
 import {
-  ArrowBack,
   Assessment,
   Chat,
-  CheckCircle,
   Code,
-  MenuBook,
   Timeline,
   ExpandMore,
-  Star,
-  StarBorder,
-  School,
   Build,
   TrendingUp,
   Assignment,
@@ -67,6 +58,17 @@ const EvaluationResults = () => {
     { id: 'qa', label: 'Q&A Review', icon: <Chat /> },
     { id: 'detailed', label: 'Detailed Analysis', icon: <Timeline /> },
   ];
+
+  const getUniqueQuestions = (qa_pairs) => {
+    const seen = new Set();
+    return qa_pairs.filter(qa => {
+      if (seen.has(qa.question)) {
+        return false;
+      }
+      seen.add(qa.question);
+      return true;
+    });
+  };
 
   const getScoreColor = (score) => {
     if (score >= 8) return '#4CAF50';
@@ -130,6 +132,7 @@ const EvaluationResults = () => {
 
   const renderSummarySection = () => {
     const performanceLabel = getPerformanceLabel(evaluation.average_score);
+    const uniqueQuestionCount = getUniqueQuestions(evaluation.qa_pairs || []).length;
 
     return (
       <motion.div
@@ -226,7 +229,7 @@ const EvaluationResults = () => {
                   <StatItem
                     icon={<Assignment />}
                     label="Questions"
-                    value={evaluation.total_questions}
+                    value={uniqueQuestionCount}
                   />
                 </Grid>
                 <Grid item xs={12} sm={4}>
@@ -240,12 +243,33 @@ const EvaluationResults = () => {
             </Paper>
           </Grid>
         </Grid>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+        <Button
+        variant="contained"
+        startIcon={<FileDownload />}
+        onClick={() => generatePDF(evaluation)}
+        sx={{
+          background: 'linear-gradient(45deg, #1a237e 30%, #0d47a1 90%)',
+          boxShadow: '0 3px 5px 2px rgba(26, 35, 126, .3)',
+          color: 'white',
+          '&:hover': {
+          background: 'linear-gradient(45deg, #0d47a1 30%, #1a237e 90%)',
+          transform: 'scale(1.02)',
+          transition: 'transform 0.2s ease-in-out',
+          },
+        }}
+        >
+        Download Report
+        </Button>
+      </Box>
+
       </motion.div>
     );
   };
-  // ... continuing from Part 1 ...
 
   const renderQASection = () => {
+    const uniqueQAPairs = getUniqueQuestions(evaluation.qa_pairs || []);
+
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -258,7 +282,7 @@ const EvaluationResults = () => {
             Question & Answer Review
           </Typography>
           <List>
-            {evaluation.qa_pairs?.map((qa, index) => (
+            {uniqueQAPairs.map((qa, index) => (
               <React.Fragment key={index}>
                 <ListItem
                   component={Paper}
@@ -325,7 +349,7 @@ const EvaluationResults = () => {
                     </Typography>
                   </Box>
                 </ListItem>
-                {index < evaluation.qa_pairs.length - 1 && (
+                {index < uniqueQAPairs.length - 1 && (
                   <Divider sx={{ my: 2 }} />
                 )}
               </React.Fragment>
@@ -534,7 +558,6 @@ const EvaluationResults = () => {
       </Box>
     </Box>
   );
-  // ... continuing from Part 2 ...
 
 const QuestionIcon = () => (
   <Box
@@ -617,13 +640,15 @@ const saveEvaluation = async () => {
 };
 
 return (
-  <Box sx={{ 
-    minHeight: '100vh',
-    backgroundColor: '#f0f2f5',
-    pt: 4,
-    pb: 8,
-  }}>
-    <ToastContainer position="top-center" />
+  <Box
+    sx={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)',
+      pt: { xs: 4, md: 8 },
+      pb: 8,
+    }}
+  >
+    <ToastContainer position="top-center" autoClose={3000} />
     
     <Container maxWidth="lg">
       <motion.div
@@ -631,9 +656,19 @@ return (
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Header Section */}
+        <Paper
+          elevation={24}
+          sx={{
+            p: 4,
+            borderRadius: 3,
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+          }}
+        >
+      {/* Header Section */}
         <Box sx={{ mb: 4 }}>
-          <Button
+          {/* <Button
             startIcon={<ArrowBack />}
             onClick={() => navigate('/')}
             sx={{
@@ -645,7 +680,7 @@ return (
             }}
           >
             Back to Home
-          </Button>
+          </Button> */}
           
           <Box sx={{ 
             display: 'flex', 
@@ -727,19 +762,7 @@ return (
           </Box>
         </AnimatePresence>
 
-        {/* Footer Section */}
-        <Box sx={{ mt: 4, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary">
-            Interview completed on{' '}
-            {new Date(evaluation.interview_date).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Typography>
-        </Box>
+        </Paper>
       </motion.div>
     </Container>
   </Box>

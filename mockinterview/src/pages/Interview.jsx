@@ -67,43 +67,43 @@ const Interview = () => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [warningCount, setWarningCount] = useState(0);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [transcriptionStarted, setTranscriptionStarted] = useState(false);
 
   const speechSynthesis = window.speechSynthesis;
-  const MAX_WARNINGS = 2;
-  // Event Handlers with useCallback
-const handleVisibilityChange = useCallback(() => {
+
+  // Utility Functions and Event Handlers
+  const handleVisibilityChange = useCallback(() => {
     if (document.hidden && isFullScreen) {
-      setWarningCount(prev => {
+      setTabSwitchCount(prev => {
         const newCount = prev + 1;
-        if (newCount > MAX_WARNINGS) {
+        if (newCount >= 2) {
           toast.error('Interview terminated due to multiple tab switches.');
           confirmExit();
+          navigate('/');
           return prev;
         }
-        toast.warning(`Warning: Please don't switch tabs during interview! (Warning ${newCount}/${MAX_WARNINGS})`);
+        toast.warning(`Warning: Please don't switch tabs! (Warning ${newCount}/2)`);
         return newCount;
       });
     }
-  }, [isFullScreen]);
-  
+  }, [isFullScreen, navigate]);
+
   const handleFullScreenChange = useCallback(() => {
     if (!document.fullscreenElement && isFullScreen) {
-      setWarningCount(prev => {
+      setTabSwitchCount(prev => {
         const newCount = prev + 1;
-        if (newCount > MAX_WARNINGS) {
+        if (newCount >= 2) {
           toast.error('Interview terminated due to multiple full screen exits.');
           confirmExit();
           return prev;
         }
-        toast.warning(`Warning: Please stay in full screen mode! (Warning ${newCount}/${MAX_WARNINGS})`);
+        toast.warning(`Warning: Please stay in full screen mode! (Warning ${newCount}/2)`);
         return newCount;
       });
     }
     setIsFullScreen(!!document.fullscreenElement);
   }, [isFullScreen]);
-  
   // Utility Functions
   const speakQuestion = (text) => {
     if (!isSpeakerEnabled) return;
@@ -122,13 +122,13 @@ const handleVisibilityChange = useCallback(() => {
   
     speechSynthesis.speak(utterance);
   };
-  
+
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
-  
+
   // Media Controls
   const toggleVideo = () => {
     if (mediaStream) {
@@ -138,7 +138,7 @@ const handleVisibilityChange = useCallback(() => {
       setIsVideoEnabled(!isVideoEnabled);
     }
   };
-  
+
   const toggleAudio = async () => {
     try {
       if (mediaStream) {
@@ -146,7 +146,7 @@ const handleVisibilityChange = useCallback(() => {
           track.enabled = !track.enabled;
         });
         setIsAudioEnabled(!isAudioEnabled);
-  
+
         if (isAudioEnabled) {
           await SpeechRecognition.stopListening();
         } else {
@@ -158,7 +158,7 @@ const handleVisibilityChange = useCallback(() => {
       toast.error('Failed to toggle audio. Please try again.');
     }
   };
-  
+
   const toggleSpeaker = () => {
     setIsSpeakerEnabled(!isSpeakerEnabled);
     if (isSpeakerEnabled) {
@@ -167,7 +167,7 @@ const handleVisibilityChange = useCallback(() => {
       speakQuestion(question);
     }
   };
-  
+
   // Exit Handlers
   const handleExit = async () => {
     if (screenfull.isEnabled && isFullScreen) {
@@ -180,7 +180,7 @@ const handleVisibilityChange = useCallback(() => {
     }
     setExitDialogOpen(true);
   };
-  
+
   const confirmExit = async () => {
     try {
       // Stop all media tracks
@@ -189,109 +189,131 @@ const handleVisibilityChange = useCallback(() => {
           track.stop();
         });
       }
-  
+
       // Stop speech recognition
-      SpeechRecognition.stopListening();
+      if (SpeechRecognition.browserSupportsSpeechRecognition()) {
+        SpeechRecognition.stopListening();
+      }
       resetTranscript();
-  
+
       // Cancel any ongoing speech
-      speechSynthesis.cancel();
-  
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+
       // Exit fullscreen with proper check
-      if (screenfull.isEnabled) {
+      if (screenfull.isEnabled && screenfull.isFullscreen) {
         await screenfull.exit();
       }
-  
+
       // Clear any timeouts
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-  
+
       // Reset states
       setIsFullScreen(false);
       setExitDialogOpen(false);
-  
-      // Navigate after cleanup
+
+      // Navigate after cleanup with a small delay
       setTimeout(() => {
         navigate('/');
       }, 100);
-  
+
     } catch (error) {
       console.error('Error during exit:', error);
       // Force navigation if cleanup fails
       navigate('/');
     }
   };
-  
-  // Keyboard Prevention
-  useEffect(() => {
-    const preventDefaultKeys = (e) => {
-      if (e.altKey && e.key === 'Tab') e.preventDefault();
-      if (e.altKey && e.key === 'F4') e.preventDefault();
-      if (e.ctrlKey && e.key === 'w') e.preventDefault();
-      if (e.key === 'F11') e.preventDefault();
-    };
-  
-    window.addEventListener('keydown', preventDefaultKeys);
-    return () => window.removeEventListener('keydown', preventDefaultKeys);
-  }, []);
   // Initialization Effect
-useEffect(() => {
+  useEffect(() => {
     const initializeInterview = async () => {
       try {
-        // Check browser support
+        // Create a function to handle permissions
+        const checkPermissions = async () => {
+          const permissions = await Promise.all([
+            navigator.permissions.query({ name: 'camera' }),
+            navigator.permissions.query({ name: 'microphone' })
+          ]);
+
+          const deniedPermissions = permissions.filter(p => p.state === 'denied');
+          if (deniedPermissions.length > 0) {
+            throw new Error('Camera and microphone permissions are required for the interview.');
+          }
+        };
+
+        // Check browser support first
         if (!browserSupportsSpeechRecognition) {
           throw new Error('Browser does not support speech recognition.');
         }
-  
-        // Initialize media stream
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' },
-          audio: true,
-        });
-  
-        setMediaStream(stream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+
+        // Check permissions before accessing media
+        await checkPermissions();
+
+        // Initialize media stream with error handling
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user' },
+            audio: true,
+          });
+
+          setMediaStream(stream);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (mediaError) {
+          throw new Error('Failed to access camera or microphone. Please ensure permissions are granted.');
         }
-  
-        // Request full screen
+
+        // Request full screen with error handling
         if (containerRef.current && screenfull.isEnabled) {
-          await screenfull.request(containerRef.current);
-          setIsFullScreen(true);
+          try {
+            await screenfull.request(containerRef.current);
+            setIsFullScreen(true);
+          } catch (fullscreenError) {
+            console.warn('Fullscreen request failed:', fullscreenError);
+            // Continue without fullscreen rather than throwing error
+          }
         }
-  
+
         // Add event listeners
         document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('fullscreenchange', handleFullScreenChange);
-  
-        // Start speech recognition automatically
+
+        // Start speech recognition
         await SpeechRecognition.startListening({ continuous: true });
         setTranscriptionStarted(true);
         setIsAudioEnabled(true);
-  
+
         toast.success('Interview initialized successfully!');
       } catch (err) {
         console.error('Initialization error:', err);
         toast.error(err.message || 'Failed to initialize interview. Please check your permissions and try again.');
+        // Navigate away after error
+        setTimeout(() => navigate('/'), 2000);
       }
     };
-  
+
     initializeInterview();
-  
+
+    // Cleanup function
     return () => {
       if (mediaStream) {
         mediaStream.getTracks().forEach(track => track.stop());
       }
+      if (SpeechRecognition.browserSupportsSpeechRecognition()) {
+        SpeechRecognition.stopListening();
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('fullscreenchange', handleFullScreenChange);
-      SpeechRecognition.stopListening();
       if (screenfull.isEnabled && isFullScreen) {
         screenfull.exit();
       }
+      setTabSwitchCount(0);
     };
-  }, [handleVisibilityChange, handleFullScreenChange, browserSupportsSpeechRecognition]);
-  
+  }, [handleVisibilityChange, handleFullScreenChange, browserSupportsSpeechRecognition, navigate, isFullScreen]);
+
   // Interview State Effect
   useEffect(() => {
     if (state) {
@@ -301,40 +323,21 @@ useEffect(() => {
       setInterviewStartTime(interview_start_time);
       speakQuestion(question);
     }
-  
+
     const interval = setInterval(() => {
       setElapsedTime((prev) => prev + 1);
     }, 1000);
-  
+
     return () => clearInterval(interval);
   }, [state]);
-  
-  // Fullscreen Cleanup Effect
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (screenfull.isEnabled && isFullScreen) {
-        screenfull.exit();
-      }
-    };
-  
-    window.addEventListener('beforeunload', handleBeforeUnload);
-  
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (screenfull.isEnabled && isFullScreen) {
-        screenfull.exit();
-      }
-    };
-  }, [isFullScreen]);
-  
   // Answer Processing Effect
   useEffect(() => {
     const sendAnswer = async () => {
       if (!transcript || isInterviewComplete || !transcriptionStarted) return;
-  
+
       setQaHistory(prev => [...prev, { question, answer: transcript }]);
       setIsLoading(true);
-  
+
       try {
         const response = await fetch('http://127.0.0.1:5000/continue_interview', {
           method: 'POST',
@@ -346,13 +349,13 @@ useEffect(() => {
             answer: transcript,
           }),
         });
-  
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-  
+
         const data = await response.json();
-  
+
         if (data.message === "Interview completed") {
           setIsInterviewComplete(true);
           if (mediaStream) {
@@ -387,18 +390,17 @@ useEffect(() => {
         setIsLoading(false);
       }
     };
-  
+
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-  
-    // Only send answer if transcript has meaningful content
+
     if (transcript && transcript.trim().length > 0) {
       timeoutRef.current = setTimeout(() => {
         sendAnswer();
-      }, 3000); // Reduced from 5000 to 3000 for better responsiveness
+      }, 3000);
     }
-  
+
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -416,6 +418,7 @@ useEffect(() => {
     isFullScreen,
     transcriptionStarted
   ]);
+
   return (
     <Box 
       ref={containerRef}
@@ -447,7 +450,7 @@ useEffect(() => {
         pauseOnHover
         theme="dark"
       />
-  
+
       {/* Left Side - AI Avatar */}
       <Box
         sx={{
@@ -479,7 +482,7 @@ useEffect(() => {
             }}
           />
         </motion.div>
-  
+
         <Box sx={{ width: '100%', maxWidth: '600px' }}>
           <Paper
             elevation={3}
@@ -500,7 +503,7 @@ useEffect(() => {
               Question {questionNumber}
             </Typography>
           </Paper>
-  
+
           <AnimatePresence mode="wait">
             <motion.div
               key={question}
@@ -525,7 +528,7 @@ useEffect(() => {
           </AnimatePresence>
         </Box>
       </Box>
-  
+
       {/* Right Side - Video Feed */}
       <Box
         sx={{
@@ -553,206 +556,164 @@ useEffect(() => {
             }}
           />
         </motion.div>
+
         {/* Controls Overlay */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          padding: 2,
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          zIndex: 2,
-        }}
-      >
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <IconButton
-            onClick={toggleVideo}
-            sx={{ 
-              color: 'white',
-              backgroundColor: alpha(theme.palette.background.paper, 0.2),
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.background.paper, 0.3),
-              }
-            }}
-          >
-            {isVideoEnabled ? <Videocam /> : <VideocamOff />}
-          </IconButton>
-          <IconButton
-            onClick={toggleAudio}
-            sx={{ 
-              color: 'white',
-              backgroundColor: alpha(theme.palette.background.paper, 0.2),
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.background.paper, 0.3),
-              }
-            }}
-          >
-            {isAudioEnabled ? <Mic /> : <MicOff />}
-          </IconButton>
-          <IconButton
-            onClick={toggleSpeaker}
-            sx={{ 
-              color: 'white',
-              backgroundColor: alpha(theme.palette.background.paper, 0.2),
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.background.paper, 0.3),
-              }
-            }}
-          >
-            {isSpeakerEnabled ? <VolumeUp /> : <VolumeOff />}
-          </IconButton>
-        </Box>
-
-        <Button
-          variant="contained"
-          color="error"
-          startIcon={<ExitToApp />}
-          onClick={handleExit}
-          sx={{
-            backgroundColor: alpha(theme.palette.error.main, 0.9),
-            '&:hover': {
-              backgroundColor: theme.palette.error.dark,
-            },
-          }}
-        >
-          Exit
-        </Button>
-      </Box>
-
-      {/* Transcription Status Indicator */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 70,
-          left: 24,
-          backgroundColor: alpha(theme.palette.background.paper, 0.9),
-          padding: '4px 12px',
-          borderRadius: 20,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          zIndex: 2,
-        }}
-      >
         <Box
           sx={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            backgroundColor: listening ? '#4caf50' : '#f44336',
-            animation: listening ? 'pulse 1.5s infinite' : 'none',
-            '@keyframes pulse': {
-              '0%': {
-                transform: 'scale(1)',
-                opacity: 1,
-              },
-              '50%': {
-                transform: 'scale(1.5)',
-                opacity: 0.5,
-              },
-              '100%': {
-                transform: 'scale(1)',
-                opacity: 1,
-              },
-            },
-          }}
-        />
-        <Typography variant="caption" color="textSecondary">
-          {listening ? 'Listening...' : 'Microphone off'}
-        </Typography>
-      </Box>
-
-      {/* Answer Display */}
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: 24,
-          left: 24,
-          right: 24,
-          zIndex: 2,
-        }}
-      >
-        <Paper
-          elevation={3}
-          sx={{
-            p: 2,
-            backgroundColor: alpha(theme.palette.background.paper, 0.9),
-            borderRadius: 2,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            padding: 2,
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            zIndex: 2,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <QuestionAnswer />
-            <Typography variant="subtitle1">Your Response:</Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <IconButton
+              onClick={toggleVideo}
+              sx={{ 
+                color: 'white',
+                backgroundColor: alpha(theme.palette.background.paper, 0.2),
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.background.paper, 0.3),
+                }
+              }}
+            >
+              {isVideoEnabled ? <Videocam /> : <VideocamOff />}
+            </IconButton>
+            <IconButton
+              onClick={toggleAudio}
+              sx={{ 
+                color: 'white',
+                backgroundColor: alpha(theme.palette.background.paper, 0.2),
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.background.paper, 0.3),
+                }
+              }}
+            >
+              {isAudioEnabled ? <Mic /> : <MicOff />}
+            </IconButton>
+            <IconButton
+              onClick={toggleSpeaker}
+              sx={{ 
+                color: 'white',
+                backgroundColor: alpha(theme.palette.background.paper, 0.2),
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.background.paper, 0.3),
+                }
+              }}
+            >
+              {isSpeakerEnabled ? <VolumeUp /> : <VolumeOff />}
+            </IconButton>
           </Box>
-          <Typography 
-            variant="body1"
+
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<ExitToApp />}
+            onClick={handleExit}
             sx={{
-              minHeight: '60px',
-              maxHeight: '120px',
-              overflowY: 'auto',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
+              backgroundColor: alpha(theme.palette.error.main, 0.9),
+              '&:hover': {
+                backgroundColor: theme.palette.error.dark,
+              },
             }}
           >
-            {transcript || 'Listening for your answer...'}
-          </Typography>
-        </Paper>
-      </Box>
-    </Box>
+            Exit
+          </Button>
+        </Box>
 
-    {/* Loading Overlay */}
-    {isLoading && (
-      <Box
-        sx={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
+        {/* Transcription Status and Answer Display */}
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 24,
+            left: 24,
+            right: 24,
+            zIndex: 2,
+          }}
+        >
+          <Paper
+            elevation={3}
+            sx={{
+              p: 2,
+              backgroundColor: alpha(theme.palette.background.paper, 0.9),
+              borderRadius: 2,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <QuestionAnswer />
+              <Typography variant="subtitle1">Your Response:</Typography>
+            </Box>
+            <Typography 
+              variant="body1"
+              sx={{
+                minHeight: '60px',
+                maxHeight: '120px',
+                overflowY: 'auto',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {transcript || 'Listening for your answer...'}
+            </Typography>
+          </Paper>
+        </Box>
+      </Box>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <CircularProgress size={60} />
+        </Box>
+      )}
+
+      {/* Exit Confirmation Dialog */}
+      <Dialog
+        open={exitDialogOpen}
+        onClose={() => setExitDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            backgroundColor: alpha(theme.palette.background.paper, 0.95),
+          },
         }}
       >
-        <CircularProgress size={60} />
-      </Box>
-    )}
-
-    {/* Exit Confirmation Dialog */}
-    <Dialog
-      open={exitDialogOpen}
-      onClose={() => setExitDialogOpen(false)}
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
-          backgroundColor: alpha(theme.palette.background.paper, 0.95),
-        },
-      }}
-    >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Warning color="warning" />
-        Exit Interview
-      </DialogTitle>
-      <DialogContent>
-        <Typography>
-          Are you sure you want to exit the interview? Your progress will be lost.
-        </Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setExitDialogOpen(false)}>Cancel</Button>
-        <Button onClick={confirmExit} color="error" variant="contained">
-          Exit
-        </Button>
-      </DialogActions>
-    </Dialog>
-  </Box>
-);
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Warning color="warning" />
+          Exit Interview
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to exit the interview? Your progress will be lost.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExitDialogOpen(false)}>Cancel</Button>
+          <Button onClick={confirmExit} color="error" variant="contained">
+            Exit
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
 };
 
 export default Interview;
