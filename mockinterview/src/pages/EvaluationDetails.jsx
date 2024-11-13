@@ -24,6 +24,8 @@ import {
   QuestionMark,
   FiberManualRecord,
   FileDownload,
+  School,
+  MenuBook,
 } from '@mui/icons-material';
 import { generatePDF } from '../utils/pdfGenerator';
 import {
@@ -121,35 +123,30 @@ const EvaluationDetails = () => {
 
   const formatEvaluationSection = (content) => {
     if (!content) return [];
-
-    const sections = content.split(/(?=\d+\.\s)/);
-    return sections.map((section) => {
-      const [title, ...contentLines] = section.split('\n');
-      const sectionContent = contentLines
-        .join('\n')
-        .split(/(?=[a-z]\))/g)
-        .map((part) => {
-          if (part.trim().match(/^[a-z]\)/)) {
-            const [subTitle, ...subContent] = part.split('\n');
-            return {
-              type: 'subsection',
-              title: subTitle.trim(),
-              content: subContent
-                .filter((line) => line.trim())
-                .map((line) => line.trim().replace(/^[-•]/, '')),
-            };
-          }
-          return {
-            type: 'text',
-            content: part.trim(),
-          };
-        });
-
-      return {
-        title: title.trim(),
-        content: sectionContent,
-      };
-    });
+  
+    // If content is a JSON string, parse it first
+    let evaluationContent = content;
+    if (typeof content === 'string' && content.startsWith('{')) {
+      try {
+        const parsedContent = JSON.parse(content);
+        evaluationContent = Object.entries(parsedContent)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join('\n');
+      } catch (e) {
+        console.error('Error parsing JSON content:', e);
+      }
+    }
+  
+    // Split into numbered sections and filter out empty lines
+    const sections = evaluationContent
+      .split(/(?=\d+\.\s)/)
+      .filter(section => section.trim())
+      .map(section => ({
+        title: section.trim(),
+        content: [] // Empty content since we're putting everything in the title
+      }));
+  
+    return sections;
   };
 
   const formatTime = (minutes) => {
@@ -157,7 +154,6 @@ const EvaluationDetails = () => {
     const mins = Math.round(minutes % 60);
     return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
   };
-  // Continuing from Part 1...
 
   const renderSummarySection = () => {
     const performanceLabel = getPerformanceLabel(evaluation.average_score);
@@ -391,7 +387,7 @@ const EvaluationDetails = () => {
 
   const renderDetailedSection = () => {
     const sections = formatEvaluationSection(evaluation.detailed_evaluation);
-
+  
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -425,64 +421,113 @@ const EvaluationDetails = () => {
               }}
             >
               <Typography variant="h6" sx={{ color: '#1a237e' }}>
-                {section.title}
+                {section.title.split(' - ')[0]}
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <Box sx={{ mt: 2 }}>
-                {section.content.map((item, idx) => {
-                  if (item.type === 'subsection') {
-                    return (
-                      <Box key={idx} sx={{ mb: 3 }}>
-                        <Typography
-                          variant="subtitle1"
-                          sx={{
-                            color: '#0d47a1',
-                            fontWeight: 600,
-                            mb: 1,
-                          }}
-                        >
-                          {item.title}
-                        </Typography>
-                        <List dense>
-                          {item.content.map((bullet, bulletIdx) => (
-                            <ListItem
-                              key={bulletIdx}
+              <Box sx={{ p: 2 }}>
+                {section.title.includes('Areas for Improvement') ? (
+                  <Box>
+                    <Typography variant="h6" sx={{ mb: 3, color: '#1a237e' }}>
+                      Recommended Learning Resources
+                    </Typography>
+                    
+                    {/* Online Courses Section */}
+                    <Box sx={{ mb: 4 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: '#0d47a1' }}>
+                        Online Courses
+                      </Typography>
+                      <List>
+                        {section.title.match(/Coursera courses:[^)]+\)/g)?.map((course, idx) => (
+                          <ListItem 
+                            key={idx}
+                            sx={{
+                              backgroundColor: 'rgba(25, 118, 210, 0.05)',
+                              mb: 1,
+                              borderRadius: 1,
+                              '&:hover': {
+                                backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                              }
+                            }}
+                          >
+                            <ListItemIcon>
+                              <School sx={{ color: '#1976d2' }} />
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary={course.split('(')[0].trim()}
+                              secondary={`Duration: ${course.match(/\d+ weeks/)?.[0] || 'Flexible'}`}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+  
+                    {/* Technical Resources Section */}
+                    <Box sx={{ mb: 4 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: '#0d47a1' }}>
+                        Technical Resources
+                      </Typography>
+                      <List>
+                        {section.title.match(/Documentation links:[^)]+\)/g)?.map((resource, idx) => (
+                          <ListItem 
+                            key={idx}
+                            sx={{
+                              backgroundColor: 'rgba(25, 118, 210, 0.05)',
+                              mb: 1,
+                              borderRadius: 1,
+                              '&:hover': {
+                                backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                              }
+                            }}
+                          >
+                            <ListItemIcon>
+                              <MenuBook sx={{ color: '#1976d2' }} />
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary={resource.split('(')[0].trim()}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+  
+                    {/* Practice Platforms Section */}
+                    <Box sx={{ mb: 4 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: '#0d47a1' }}>
+                        Practice Platforms
+                      </Typography>
+                      <Grid container spacing={2}>
+                        {section.title.match(/Practice platforms:[^)]+\)/g)?.map((platform, idx) => (
+                          <Grid item xs={12} md={6} key={idx}>
+                            <Card 
+                              elevation={1}
                               sx={{
-                                pl: 2,
                                 '&:hover': {
-                                  backgroundColor: 'rgba(13, 71, 161, 0.04)',
-                                },
+                                  boxShadow: 3,
+                                  transform: 'translateY(-2px)',
+                                  transition: 'all 0.2s ease-in-out'
+                                }
                               }}
                             >
-                              <ListItemIcon sx={{ minWidth: 32 }}>
-                                <FiberManualRecord
-                                  sx={{ fontSize: 8, color: '#0d47a1' }}
-                                />
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={
-                                  <Typography variant="body2">
-                                    {formatContent(bullet)}
-                                  </Typography>
-                                }
-                              />
-                            </ListItem>
-                          ))}
-                        </List>
-                      </Box>
-                    );
-                  }
-                  return (
-                    <Typography
-                      key={idx}
-                      variant="body2"
-                      sx={{ mb: 2, pl: 2 }}
-                    >
-                      {formatContent(item.content)}
-                    </Typography>
-                  );
-                })}
+                              <CardContent>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
+                                  {platform.split('(')[0].trim()}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {platform.match(/\([^)]+\)/)?.[0]?.replace(/[()]/g, '')}
+                                </Typography>
+                              </CardContent>
+                            </Card>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>
+                    {section.title.split(' - ').slice(1).join(' - ')}
+                  </Typography>
+                )}
               </Box>
             </AccordionDetails>
           </Accordion>
